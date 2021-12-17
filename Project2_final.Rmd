@@ -1,0 +1,500 @@
+---
+title: "Project 2"
+author: "Shelbie Burchfield"
+date: "7/4/2020"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+
+
+# Introduction
+This project looks at world health data provided by the GapMinder project, which has been collected over many years. The data presented here is a compilation of several sets of data from the GapMinder project. The variables discussed include gross domestic product per capita, life expectancy, infant mortality, and population size. Here, we explore the relationship between these variables while taking into consideration the advancement of technology. As technology has advanced and continues to advance over the years, it is hypothesized that income and life expectancy increases while infant mortality decreases.
+```{r libraries}
+library(tidyverse)
+
+#Read in the 8 datasets
+
+gini <- read_csv("GPM_gini.csv")
+infant_mortality <- read_csv(
+  "GPM_infant_mortality_rate_per_1000_births.csv"
+)
+gdpPerCap <- read_csv(
+  "GPM_income_per_person_gdppercapita_ppp_inflation_adjusted.csv"
+)
+life_expectancy <- read_csv("GPM_life_expectancy_years.csv")
+murder <- read_csv("GPM_murder_per_100000_people.csv")
+population <- read_csv("GPM_population_total.csv")
+gender_ratio <- read_csv(
+  "GPM_ratio_of_girls_to_boys_in_primary_and_secondary_education_perc.csv"
+)
+gapminder_country_regions_table_20200604 <- read_csv(
+  "gapminder_country_regions_table_20200604.csv"
+)
+
+#Join the datasets
+
+GapMinder_df <- bind_rows(
+  list(
+    "gini" = gini,
+    "infant_mortality" = infant_mortality,
+    "gdpPerCap" = gdpPerCap,
+    "life_expectancy" = life_expectancy,
+    "murder" = murder,
+    "population" = population,
+    "gender_ratio" = gender_ratio
+  ), 
+  .id = "Dataset"
+)
+
+#Tidy up the dataframe
+
+GapMinderTidy_df <- 
+  GapMinder_df %>% 
+  pivot_longer(
+    cols = "1800":"2100", 
+    names_to = "year"
+  ) %>%
+  pivot_wider(names_from = "Dataset") %>%
+  mutate(year = as.numeric(year))
+
+
+#Add the region labels
+
+GapMinderTidy_df <- full_join(
+  GapMinderTidy_df,
+  gapminder_country_regions_table_20200604,
+  by = "country"
+)
+
+#Write data to CSV
+write_csv(x = GapMinderTidy_df, path = "Data_Project2/GapMinderTidy_df.csv")
+
+```
+
+# Changes in World Income and Life Expectancy 
+
+
+## World Income and Life Expectancy in 2011
+It is known that there is an association between income and life expectancy, so it is anticipated that in the year 2011, countries with higher incomes will have longer life expectancies while countries with lower incomes will have shorter life expectancies. This is because those with higher incomes tend to have access to better healthcare services, and these healthcare services are affordable because of the higher income.
+
+```{r bubbleStructure}
+
+#Background and grid format
+
+bubblePlotTheme <- theme(
+  #Set background color
+  panel.background = element_rect(fill = "white"),
+  #Set grid color
+  panel.grid = element_line(color = "grey80"),
+  #Set axis color and size
+  axis.line = element_line(color = "grey50", size = 0.1), 
+  #Remove axis tick marks
+  axis.ticks = element_blank(),
+  #Set axis text color
+  axis.text = element_text(color = "grey50"),
+  axis.title = element_text(color = "darkslategrey"),
+  #Remove legend
+  legend.position = "none"
+)
+  
+#Axis aesthetics
+
+bubbleAes_ls <- list(
+  aes(
+    #Variable parameters
+    x = gdpPerCap,
+    y = life_expectancy, 
+    fill = continent, 
+    size = population
+  ),
+  #Axis labels
+  labs(
+    x = "Income", 
+    y = "Life Expectancy"
+  )
+)
+
+#Axis scales and labels
+
+bubbleScaleLabl_ls <- list(
+  #Convert x-axis to log2 and label tick marks
+  scale_x_log10(
+    limits = c(500, 110000), 
+    breaks = 1000 * 2^(-1:6),
+    minor_breaks = NULL,
+    labels = c("500", "1000", "2000", "4000", "8000", "16k", "32k", "64k")
+  ),
+  #Set y-axis limit and tick marks
+  scale_y_continuous(
+    limits = c(15, 95), breaks = seq(20, 90, 10), minor_breaks = NULL
+  ),
+  #Set colors for bubbles
+  scale_fill_manual(values = c(
+    "turquoise1", "green", "red", "gold", "red", "grey"
+  )),
+  #Set size range for bubbles
+  scale_size_continuous(range = c(0.1, 20))
+)
+
+#Graph texts
+
+bubbleAnnotate_ls <- list(
+  #Axis captions
+  annotate(geom = "text", x = 5500, y = 15, 
+    label = "per person (GDP/capita, PPP$ inflation-adjusted)", 
+    color = "grey50", size = 3, hjust = 0, vjust = 1
+  ),
+  annotate(geom = "text", x = 500, y = 95, label = "years", color = "grey50", 
+    size = 3,  angle = 90, hjust = 1, vjust = 0
+  ),
+  annotate(geom = "text", x = 110000, y = 80,
+    label = "Size: Population Total, Color: World Region", color = "grey50", 
+    size = 3, angle = 90, hjust = 1, vjust = 1
+  ),
+  #Income level text
+  annotate(geom = "text", x = 1800, y = 90, label = "INCOME LEVEL 1", 
+    color = "grey50", size = 3, hjust = 1),
+  annotate(geom = "text", x = 5500, y = 90, label = "LEVEL 2", 
+    color = "grey50", size = 3, hjust = 1),
+  annotate(geom = "text", x = 16000, y = 90, label = "LEVEL 3", 
+    color = "grey50", size = 3, hjust = 1),
+  annotate(geom = "text", x = 50000, y = 90, label = "LEVEL 4", 
+    color = "grey50", size = 3, hjust = 1),
+  #Income level shapes
+  annotate(geom = "point", x = 2600, y = 90, shape = 18, size = 3, 
+    color = "grey50", hjust = 1, vjust = 0),
+  annotate(geom = "point", x = 8000, y = 90, shape = 18, size = 3, 
+    color = "grey50", hjust = 1, vjust = 0),
+  annotate(geom = "point", x = 25000, y = 90, shape = 18, size = 3, 
+    color = "grey50", hjust = 1, vjust = 0)
+)
+
+
+```
+
+```{r bubble2011}
+ggplot(
+  data = GapMinderTidy_df %>% 
+  filter(year == 2011)
+) +
+  
+  bubblePlotTheme +
+  bubbleAes_ls +
+  bubbleScaleLabl_ls +
+  bubbleAnnotate_ls +
+  
+  #Label the year of the graph
+  annotate(
+    geom = "text", x = 7000, y = 45, label = "2011", color = "grey85", 
+    size = 40, fontface = 11
+  ) +
+  
+  geom_point(alpha = 0.65, shape = 21, color = "black")
+```
+
+The average life expectancy in years and the income as measured by the gross domestic product per capita were plotted for the year 2011. Each data point represents a country, the size of the data point represents the population size in billions, and the color of the data point represents the continent on which the country is located. Green indicates the Americas, yellow indicates Europe, turquoise indicates Africa, and red indicates Asia and Oceania. As hypothesized, the countries with higher incomes tend to have longer life expectancies, and countries with lower incomes tend to have shorter life expectancies. There are some countries that do not follow this trend, which can be seen by the points that fall outside the general clustering of data. These points may fall outside the cluster due to other factors such as the location of the country.
+
+
+## World Income and Life Expectancy Over Time
+As previously stated, the life expectancy of a given population is expected be longer in populations that have higher incomes and shorter in populations that have lower incomes. Additionally, the income of a given population is anticipated to increase over time. Therefore, the life expectancy of the same population is anticipated to also increase over time.
+
+```{r bubble1965}
+ggplot(
+  data = GapMinderTidy_df %>% 
+  filter(year == 1965)
+) +
+  
+  bubblePlotTheme +
+  bubbleAes_ls +
+  bubbleScaleLabl_ls +
+  bubbleAnnotate_ls +
+  
+  #Label the year of the graph
+  annotate(
+    geom = "text", x = 7000, y = 45, label = "1965", color = "grey85", 
+    size = 40, fontface = 11
+  ) +
+  
+  geom_point(alpha = 0.65, shape = 21, color = "black")
+
+
+```
+
+```{r bubble1975}
+ggplot(
+  data = GapMinderTidy_df %>% 
+  filter(year == 1975)
+) +
+  
+  bubblePlotTheme +
+  bubbleAes_ls +
+  bubbleScaleLabl_ls +
+  bubbleAnnotate_ls +
+  
+  #Label the year of the graph
+  annotate(
+    geom = "text", x = 7000, y = 45, label = "1975", color = "grey85", 
+    size = 40, fontface = 11
+  ) +
+  
+  geom_point(alpha = 0.65, shape = 21, color = "black")
+
+```
+
+```{r bubble1985}
+ggplot(
+  data = GapMinderTidy_df %>% 
+  filter(year == 1985)
+) +
+  
+  bubblePlotTheme +
+  bubbleAes_ls +
+  bubbleScaleLabl_ls +
+  bubbleAnnotate_ls +
+  
+  #Label the year of the graph
+  annotate(
+    geom = "text", x = 7000, y = 45, label = "1985", color = "grey85", 
+    size = 40, fontface = 11
+  ) +
+  
+  geom_point(alpha = 0.65, shape = 21, color = "black")
+
+```
+
+```{r bubble1995}
+ggplot(
+  data = GapMinderTidy_df %>% 
+  filter(year == 1995)
+) +
+  
+  bubblePlotTheme +
+  bubbleAes_ls +
+  bubbleScaleLabl_ls +
+  bubbleAnnotate_ls +
+  
+  #Label the year of the graph
+  annotate(
+    geom = "text", x = 7000, y = 45, label = "1995", color = "grey85", 
+    size = 40, fontface = 11
+  ) +
+  
+  geom_point(alpha = 0.65, shape = 21, color = "black")
+```
+
+As seen in the previous figure, the countries that have higher incomes also tend to have longer life expectancies. This may not be true for all countries, which is more apparent in 1965, but the general trend is that as income increases, life expectancy also increases. It is important to note that over time, there is general increase in both income and life expectancy across the world. It is somewhat apparent when comparing 1965 to 1975, but it becomes more apparent when comparing 1965 to 1985 and 1995. In the context of the advancement of technology, information technology began to advance rapidly in the 1980's, which may have contributed to the shift in income and life expectancy. In terms of income, the advancement in information technology created a new job sector, and in terms of life expectancy it allowed for the storage, retrieval, and dissemination of healthcare data and information. Greater access to such data contributes to the advancement of healthcare practices and disease treatments than can lead to longer life expectancies.
+
+
+
+# Changes in Income and Infant Mortality
+
+
+```{r lineStructure}
+
+#Filter the dataset
+
+lineFilter_ls <- GapMinderTidy_df %>%
+  filter(
+    country %in% c("United States", "Russia", "China", "India", "Togo"))
+
+#Plot format
+
+lineTheme <- theme(
+  #Set background color
+  panel.background = element_rect(fill = "white"),
+  #Set grid color
+  panel.grid = element_line(linetype = "dotted", color = "grey30"),
+  #Set axis color and size
+  axis.line = element_line(color = "grey50", size = 0.1), 
+  #Remove axis tick marks
+  axis.ticks = element_blank(),
+  #Remove y-axis label
+  axis.title.y = element_blank(),
+  #Set axis text colors
+  axis.text = element_text(color = "grey50"),
+  axis.title.x = element_text(
+    size = 13, color = "darkslategrey", family = "Courier", hjust = 1
+  ),
+  plot.title = element_text(size = 13, color = "darkslategrey", family = "Courier"),
+  #Reposition axis text
+  plot.title.position = "plot",
+  #Remove legend
+  legend.position = "none",
+)
+
+#Axis scales
+
+lineScale_ls <- list(
+  scale_x_continuous(
+    limits = c(1955, 2019),
+    breaks = seq(1960, 2000, 20),
+    minor_breaks = seq(1960, 2010, 10)
+  ),
+  #Set colors for countries (China, India, Russia, Togo, United States)
+  scale_color_manual(values = c(
+    "red", "red", "gold", "turquoise1", "green")
+))
+
+
+
+```
+
+## Income Over Time
+As we saw in the previous section, income increases over time across the world. When taking a closer look at China, India, Russia, Togo, and the United States, a similar trend is anticipated. It is important to note that Togo is an underdeveloped country, so the increase in income over time is not expected to be as pronounced as the other countries.
+
+```{r lineGDP}
+ggplot(
+  data = lineFilter_ls %>%
+    filter(
+      year <= 2011)
+) +
+  
+  #Specify y-axis
+  aes(
+    x = year,
+    y = gdpPerCap,
+    color = country,
+  ) +
+  
+  #Add axis labels in margins
+  labs(
+    title = paste("Income per person (GDP/capita, PPP$ inflation-adjusted)"),
+    x = "Time"
+  ) +
+  
+  #Add x-axis and color scales
+  lineScale_ls +
+  
+  #Add color theme
+  lineTheme +
+  
+  #Adjust y-axis scale to log2 and label
+  scale_y_log10(
+    breaks = 1000 * 2^(-1:7),
+    minor_breaks = NULL,
+    labels = c("500", "1000", "2000", "4000", "8000", "16k", "32k", "64k", "")
+  ) +
+  
+  geom_line(size = 0.8) +
+  
+  #Add country point at end of line
+  geom_point(
+    data = lineFilter_ls %>%
+      filter(year == 2011), 
+    mapping = aes(x = year, y = gdpPerCap), 
+    shape = 21,color = "black", 
+    fill = c("red", "red", "gold", "turquoise1", "green"), 
+    size = 4
+  ) +
+  
+  #Add country label at end of line
+  geom_text(data = lineFilter_ls %>%
+      filter(year == 2012), aes(label = country), hjust = 0)
+```
+
+There is a general increase in income over time for China, India, Russia, and the United States. There are fluctuations in income over time for Togo, but the overall income has mostly remained the same. The United States, India, and China have a steady increase in income over time. However, in the early 1960's China experienced a fluctuation in income, which may be due to the Great Leap Forward (1958-1962), the Great Chinese Famine in the early 1960's, and the beginning of the Cultural Revolution in 1966. While there are no data to present for Russia before the late 1980's, Russia displays an increase in income beginning in the late 1990's. The decrease in Russia's income in the early 1990's may be explained by the collapse of Communism as well as the transition to a market-based economy. Togo, an underdeveloped country, does not show a clear growth or decline in income over time. There was an increase in income from 1960 to 1965, which plateaued. This may be due to the country's independence from France in 1960 and the establishment of a new constitution in 1961 and again in 1963. In the 60's the country's elected leadership was either threatened or overthrown by coups. In 1967, Gnassingbé Eyadéma lead a coup and became the president until his death in 2005. In the early 1990's there is a sharp decline in income, which may be explained by political violence that occurred in 1993 and 1994 when military troops fired on peaceful protesters and rampaged a city for 8 hours. This led to attacks on the Togolese President and subsequent military responses leading to the death of many civilians.
+
+
+## Infant Mortality Over Time
+In contrast to income over time, infant mortality is expected to decrease over time. This hypothesis is driven not only by the increase in income seen in the previous section but also by the technological advancement seen in healthcare. An increase in income is associated with the ability to afford better healthcare services as an individual, but the advancement in information technology has also influenced the dissemination of information collected on better healthcare practices.
+
+```{r lineInfMort}
+ggplot(
+  data = lineFilter_ls %>%
+    filter(
+      year <= 2011)
+) +
+  
+  #Specify y-axis
+  aes(
+    x = year,
+    y = infant_mortality,
+    color = country,
+  ) +
+  
+  #Add axis labels in margins
+  labs(
+    title = paste("Infant Mortality (rate per 1000 births)"),
+    x = "Time"
+  ) +
+  
+  #Add x-axis and color scales
+  lineScale_ls +
+  
+  #Add color theme
+  lineTheme +
+  
+  #Adjust y-axis scale to log2
+  scale_y_log10(
+    breaks = 10 * 2^(-1:4),
+    minor_breaks = NULL
+  ) +
+  
+  #Plot line of data
+  geom_line(size = 0.8) +
+  
+  #Plot points to show individual data points skipped by line plot
+  geom_point(size = 0.4) +
+  
+  #Add country point at end of line
+  geom_point(
+    data = lineFilter_ls %>%
+      filter(year == 2011), 
+    mapping = aes(x = year, y = infant_mortality), 
+    shape = 21,color = "black", 
+    fill = c("red", "red", "gold", "turquoise1", "green"), 
+    size = 4
+  ) +
+  
+  #Add country label at end of line
+  geom_text(data = lineFilter_ls %>%
+      filter(year == 2012), aes(label = country), hjust = 0)
+```
+
+Infant mortality rates decrease over time with respect to China, India, Russia, Togo, and the United States. India and Togo display a very similar trend with high infant mortalities in the 1960's that progressively decrease over time. Although Russia is missing infant mortality data from 1960 to 1970, Russia and the United States also have similar changes in infant mortality rates over time. In the 1990's there is a plateau in Russia's infant mortality. The dissolution of the Soviet Union, which occurred in 1991, may have influenced this. During this time, Russia also transitioned to a market economy. There are some data points missing for infant mortality in the 1960's for China as well, and there is a high initial level of infant mortality in China is likely a result of the Great Chinese Famine (1959-1961). In 1980, China implemented a one-child policy, which may have be why infant mortality plateaued in the 1980's. In the 1990's, China's economy began to improve especially with respect to global merchandise exports, which grew from 2% to 14%. This may have influenced the decrease in infant mortality seen from 1990 to present. As previously mentioned with respect to increasing life expectancy, the reduction of infant mortality rates over time may be linked to the advancement in information technology over time as it has played a role in the advancement of healthcare practices and the dissemination of these healthcare practices.
+
+# Infant Mortality and Population Size
+
+
+## Countries with Highest Infant Mortality
+Here we will examine 15 countries with the highest infant mortality and assess the relationship between infant mortality and population size. It is hypothesized that countries with larger populations will have lower infant mortalities. The rationale behind this hypothesis is that countries that have larger populations are likely to have better economies and healthcare services.
+
+```{r barInfMort}
+ggplot(data = GapMinderTidy_df %>% 
+  filter(year == 2015) %>%
+  arrange(desc(infant_mortality)) %>%
+  head(15)
+) +
+  
+  aes(
+    x = infant_mortality,
+    #Sort countries with highest infant mortality at top
+    y = reorder(country, infant_mortality), 
+    fill = log10(population)
+  ) +
+  
+  labs(
+    x = "Infant Mortality (rate per 1000 births)",
+    y = "Country"
+  ) +
+  
+  geom_bar(stat = "identity")
+```
+
+In the figure above, infant mortality per 1,000 births is graphed on the x-axis, and each bar represents a designated country on the y-axis. The country with the highest infant mortality is on the top, and the country with the lowest infant mortality is on the bottom. The color of each country's bar represents the population size of that country. With the exception of Afghanistan and Pakistan, the countries with the highest rates of infant mortality are found in Africa. Contrary to what was hypothesized, there does not appear to be a pattern with infant mortality in relation to population size. Pakistan and Nigeria have the highest populations of the 15 countries. Conversely, Equitorial Guinea and Lesotho appear to have the lowest populations of the 15 countries. With the exception of Pakistan, those countries with the highest and lowest populations of the 15 countries observed fall in the middle of the range of infant mortality rates. The high rates of infant mortality in Africa may likely be due to the low immunization rates seen across the continent as well as a lack of healthcare programs and facilities. For instance, although Nigeria has a large population and second-largest stock exchange in Africa, the immunization rate for children 1-3 years of age is only 13%. Afghanistan and Pakistan may have high infant mortality rates due to insecurity due to war, lack of healthcare funding, and lack of access to healthcare facilities.
+
+# Conclusions
+
+
+## GapMinder Data Conclusions
+In this report we have shown that throughout the world, there is an association between income and life expectancy. A population with a higher income tends to have a longer life expectancy than a population with a lower income. This report also demonstrated that for many countries across the world, income and life expectancy has increased over time. This may be tied to the advancement in information technology, which began to accelerate in the 1980's. This advancement lead to the creation of new job opportunities, and it allowed for the storage and communication of healthcare data and information. This stimulated the advancement of healthcare practices and disease treatments which can contribute to longer life expectancies and lower infant mortalities. However, these trends may be disrupted by other factors such as the political turmoil seen in Russia, China, and Togo.
+
+## Data Wrangling Conclusions
+At first wrangling the data was very difficult, but once I was introduced to the `pivot_longer()` and `pivot_wider()` functions it became much more manageable. I don't think I would have found the right function to use on my own because I did not know that the data could be manipulated that way. I knew what I wanted/needed to do, I just didn't have the right tools in my toolbox yet to do it. I started the project thinking I had already learned everything I needed to do the assignment, but that was not the case. I am extremely thankful for the office hours session which was extremely beneficial for me, but I also wish such wrangling strategies had been discussed in class because they were not in the book readings either. I racked my brain for hours trying to make subsetting, filtering, arranging, and mutating work. None worked for what I needed to do, obviously, but that's all we had talked about. The closest functions I found on my own was `t()` to transpose data and `aggregate()`. Everything I tried before the office hours session was a *mess*.
